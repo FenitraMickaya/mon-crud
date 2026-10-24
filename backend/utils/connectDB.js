@@ -1,38 +1,52 @@
 import pg from 'pg'
 import env from 'dotenv'
+
 env.config()
 
 const requireEnvVars = [
-  "DB_HOST",
-  "DB_PORT",
-  "DB_USER",
-  "DB_PASSWORD",
-  "DB_NAME"
+  'DB_HOST',
+  'DB_PORT',
+  'DB_USER',
+  'DB_PASSWORD',
+  'DB_NAME',
 ]
 
-requireEnvVars.forEach((varName)=>{
-  if(!process.env[varName]){
-    console.log(`Missing require env variable: ${varName}`);
-    process.exit()
-  }
-});
+const missing = requireEnvVars.filter((name) => !process.env[name])
 
-const db = new pg.Pool({
+if (missing.length > 0) {
+  console.error(
+    `Variable(s) d'environnement manquante(s) : ${missing.join(', ')}. Copiez .env.example vers .env.`,
+  )
+  process.exit(1)
+}
+
+export const pool = new pg.Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
+  port: Number(process.env.DB_PORT),
+  max: 10,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 10_000,
 })
 
-db.connect().then(()=> console.log("Database is connected")).catch((err)=>{
-  console.log("Connection denied");
+// Vérifie la connexion au démarrage, sans retaining un client du pool.
+try {
+  await pool.query('SELECT 1')
+  console.log('✅ Connexion à PostgreSQL établie')
+} catch (err) {
+  console.error('❌ Connexion à PostgreSQL impossible :', err.message)
   process.exit(1)
+}
+
+// Un client qui tombe du pool ne doit pas tuer le process.
+pool.on('error', (err) => {
+  console.error('Erreur du pool PostgreSQL :', err.message)
 })
 
-db.on("error", (err)=>{
-  console.log('Database error:' , err)
-});
-
-
-export const query = (text, params) => db.query(text,params)
+/**
+ * Exécute une requête SQL et renvoie le résultat complet de `pg`
+ * ({ rows, rowCount, ... }).
+ */
+export const query = (text, params) => pool.query(text, params)

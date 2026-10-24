@@ -4,10 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run --passWithNoTests",
+    "test": "NODE_ENV=test vitest run --passWithNoTests",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "db:init": "node utils/connectDB.js"
+    "db:init": "node db/init.js",
+    "db:seed": "node db/seed.js"
   },
   "keywords": [],
   "type": "module",

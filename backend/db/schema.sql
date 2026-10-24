@@ -1,26 +1,23 @@
--- Schéma de départ — à adapter à ton modèle métier.
--- Appliquer avec :  npm run db:init
+-- Schéma de la base « mon_crud »
+-- Source de vérité unique : appliquée par `npm run db:init` et par utils/schema.js
+-- Idempotent : peut être rejoué sans effet de bord.
 
-CREATE TABLE IF NOT EXISTS items (
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'role_type') THEN
+    CREATE TYPE role_type AS ENUM('Developer', 'Manager', 'Sales', 'Admin', 'Intern');
+  END IF;
+END
+$$;
+
+CREATE TABLE IF NOT EXISTS employee_details (
   id          SERIAL PRIMARY KEY,
-  name        VARCHAR(150) NOT NULL,
-  description TEXT         NULL,
-  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  name        VARCHAR(50)  NOT NULL,
+  email       VARCHAR(50)  NOT NULL UNIQUE,
+  age         SMALLINT     NOT NULL CHECK (age > 18),
+  role        role_type    NOT NULL DEFAULT 'Intern',
+  salary      DECIMAL(8, 2) NOT NULL CHECK (salary >= 0)
 );
 
-CREATE INDEX IF NOT EXISTS idx_items_name ON items (name);
-
--- Met à jour updated_at à chaque UPDATE
-CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trg_items_updated_at ON items;
-CREATE TRIGGER trg_items_updated_at
-  BEFORE UPDATE ON items
-  FOR EACH ROW
-  EXECUTE FUNCTION set_updated_at();
+CREATE INDEX IF NOT EXISTS idx_employee_details_name ON employee_details (name);
+CREATE INDEX IF NOT EXISTS idx_employee_details_role ON employee_details (role);
